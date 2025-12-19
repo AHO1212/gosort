@@ -1,14 +1,14 @@
 # gosort – Concurrent Chunk Sorting Assignment
 
-**Student:** Ahmet Can Karayoluk**  
-**Student ID:** 231ADB260**  
-**Course:** DE0917(English)(1), 25/26-R**
+**Student:** Ahmet Can Karayoluk 
+**Student ID:** 231ADB260 
+**Course:** DE0917(English)(1), 25/26-R
 
 ---
 
 ## Overview
 
-This program implements a concurrent integer sorting tool named **gosort**.  
+This program implements a concurrent integer sorting tool named **gosort**  
 It follows the required rules:
 
 - Minimum 4 chunks  
