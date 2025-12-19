@@ -26,33 +26,22 @@ Run the program with:
 
 go run .
 
-shell
-Kodu kopyala
-
 Then choose one mode.
 
 ### Random Mode (`-r`)
 go run . -r 20
 
-mathematica
-Kodu kopyala
 
 ### Input File Mode (`-i`)
 go run . -i input.txt
 
-shell
-Kodu kopyala
 
 ### Directory Mode (`-d`)
 Sorted files are written to:
 
 incoming_sorted_ahmet_can_karayoluk_231ADB260
 
-Kodu kopyala
 go run . -d incoming
-
-pgsql
-Kodu kopyala
 
 ---
 
