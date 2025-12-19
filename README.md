@@ -1,52 +1,63 @@
 # gosort – Concurrent Chunk Sorting Assignment
 
-**Student:** Ahmet Can Karayoluk  
-**Student ID:** 231ADB260  
-**Course:** DE0917(English)(1), 25/26-R  
-**Assignment:** Concurrent Chunk Sorting (gosort)
+**Student:** Ahmet Can Karayoluk**  
+**Student ID:** 231ADB260**  
+**Course:** DE0917(English)(1), 25/26-R**
 
 ---
 
 ## Overview
 
-This program implements a concurrent integer sorting tool named **gosort**, following all requirements defined in the assignment:
+This program implements a concurrent integer sorting tool named **gosort**.  
+It follows the required rules:
 
 - Minimum 4 chunks  
 - Otherwise: number of chunks = `ceil(sqrt(n))`  
-- Chunks must have almost equal size  
-- Each chunk is sorted in its own goroutine  
-- Merging is implemented manually (no flatten + global sort)  
-- Three modes are supported: `-r`, `-i`, `-d`  
+- Chunks are nearly equal in size  
+- Each chunk is sorted in a separate goroutine  
+- Manual merge procedure (no flatten + global sort)  
+- Modes: `-r`, `-i`, `-d`
 
 ---
 
 ## Usage
 
-### Random Mode (`-r`)
-Generates N random integers (N ≥ 10) and sorts them concurrently.
+Run the program with:
 
-gosort -r 20
+go run .
+
+shell
+Kodu kopyala
+
+Then choose one mode.
+
+### Random Mode (`-r`)
+go run . -r 20
+
+mathematica
+Kodu kopyala
 
 ### Input File Mode (`-i`)
-Reads integers from a text file (one per line) and sorts them concurrently.
+go run . -i input.txt
 
-gosort -i input.txt
+shell
+Kodu kopyala
 
 ### Directory Mode (`-d`)
-Processes all `.txt` files inside a directory.  
-Each file is sorted independently and written to:
+Sorted files are written to:
 
 incoming_sorted_ahmet_can_karayoluk_231ADB260
 
-Command:
+Kodu kopyala
+go run . -d incoming
 
-gosort -d incoming
+pgsql
+Kodu kopyala
 
 ---
 
 ## Notes
 
-- All chunk sorting is performed using goroutines.  
-- Merging is done manually using multi-step k-way merging.  
-- Input validation and error handling follow assignment requirements.  
-- This implementation fully satisfies the requirements for modes `-r`, `-i`, and `-d`.  
+- Sorting is performed concurrently.  
+- Merging is implemented manually.  
+- All modes match the assignment requirements.
