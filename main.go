@@ -1,8 +1,14 @@
+// Ahmet Can Karayoluk
+// 231ADB260
+
 package main
 
 import (
 	"bufio"
+	"errors"
+	"flag"
 	"fmt"
+	"log"
 	"math"
 	"math/rand"
 	"os"
@@ -14,301 +20,268 @@ import (
 	"time"
 )
 
-const (
-	firstName = "ahmet_can"
-	lastName  = "karayoluk"
-	studentID = "231ADB260"
-)
-
 func main() {
-	if len(os.Args) < 2 {
-		printUsageAndExit("no mode provided")
+	rFlag := flag.Int("r", -1, "")
+	iFlag := flag.String("i", "", "")
+	dFlag := flag.String("d", "", "")
+	flag.Parse()
+
+	mode := 0
+	if *rFlag != -1 {
+		mode++
+	}
+	if *iFlag != "" {
+		mode++
+	}
+	if *dFlag != "" {
+		mode++
+	}
+	if mode != 1 {
+		log.Fatal("Usage:\n  gosort -r N\n  gosort -i input.txt\n  gosort -d incoming")
 	}
 
-	mode := os.Args[1]
-	args := os.Args[2:]
-
-	switch mode {
-	case "-r":
-		handleRandomMode(args)
-	case "-i":
-		handleInputFileMode(args)
-	case "-d":
-		handleDirectoryMode(args)
-	default:
-		printUsageAndExit("unknown mode: " + mode)
+	var err error
+	switch {
+	case *rFlag != -1:
+		err = runRandom(*rFlag)
+	case *iFlag != "":
+		err = runInputFile(*iFlag)
+	case *dFlag != "":
+		err = runDirectory(*dFlag)
+	}
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 
-func printUsageAndExit(msg string) {
-	if msg != "" {
-		fmt.Fprintln(os.Stderr, "Error:", msg)
+func runRandom(n int) error {
+	if n < 10 {
+		return errors.New("N must be >= 10")
 	}
-	fmt.Fprintln(os.Stderr, "Usage:")
-	fmt.Fprintln(os.Stderr, "  gosort -r N")
-	fmt.Fprintln(os.Stderr, "  gosort -i input.txt")
-	fmt.Fprintln(os.Stderr, "  gosort -d incoming")
-	os.Exit(1)
+
+	numbers := generateRandomNumbers(n)
+
+	fmt.Println("Original numbers:")
+	fmt.Println(numbers)
+
+	chunks := splitIntoChunks(numbers)
+	fmt.Println("\nChunks before sorting:")
+	printChunks(chunks)
+
+	sorted := sortChunksConcurrently(chunks)
+	fmt.Println("\nChunks after sorting:")
+	printChunks(sorted)
+
+	merged := mergeSortedChunks(sorted)
+	fmt.Println("\nFinal sorted result:")
+	fmt.Println(merged)
+
+	return nil
 }
 
-func processNumbers(nums []int, verbose bool) []int {
-	if verbose {
-		fmt.Printf("Original numbers: %v\n", nums)
+func runInputFile(path string) error {
+	numbers, err := readIntegersFromFile(path)
+	if err != nil {
+		return err
+	}
+	if len(numbers) < 10 {
+		return errors.New("input file must contain at least 10 integers")
 	}
 
-	chunks := chunkSlice(nums)
+	fmt.Println("Original numbers:")
+	fmt.Println(numbers)
 
-	if verbose {
-		fmt.Println("Chunks before sorting:")
-		printChunks(chunks)
-	}
+	chunks := splitIntoChunks(numbers)
+	fmt.Println("\nChunks before sorting:")
+	printChunks(chunks)
 
-	sortChunksConcurrently(chunks)
+	sorted := sortChunksConcurrently(chunks)
+	fmt.Println("\nChunks after sorting:")
+	printChunks(sorted)
 
-	if verbose {
-		fmt.Println("Chunks after sorting:")
-		printChunks(chunks)
-	}
+	merged := mergeSortedChunks(sorted)
+	fmt.Println("\nFinal sorted result:")
+	fmt.Println(merged)
 
-	sorted := mergeSortedChunks(chunks)
-
-	if verbose {
-		fmt.Printf("Final sorted result: %v\n", sorted)
-	}
-
-	return sorted
+	return nil
 }
 
-func chunkSlice(nums []int) [][]int {
-	n := len(nums)
-	if n == 0 {
-		return nil
+func runDirectory(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
 	}
 
-	chunksCount := int(math.Ceil(math.Sqrt(float64(n))))
-	if chunksCount < 4 {
-		chunksCount = 4
-	}
-	if chunksCount > n {
-		chunksCount = n
+	outDir := filepath.Base(dir) + "_sorted_ahmet_can_karayoluk_231ADB260"
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		return err
 	}
 
-	baseSize := n / chunksCount
-	remainder := n % chunksCount
+	count := 0
 
-	chunks := make([][]int, 0, chunksCount)
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		if strings.ToLower(filepath.Ext(e.Name())) != ".txt" {
+			continue
+		}
+
+		inPath := filepath.Join(dir, e.Name())
+		numbers, err := readIntegersFromFile(inPath)
+		if err != nil {
+			return err
+		}
+		if len(numbers) < 10 {
+			return fmt.Errorf("file %s has fewer than 10 integers", e.Name())
+		}
+
+		chunks := splitIntoChunks(numbers)
+		sorted := sortChunksConcurrently(chunks)
+		merged := mergeSortedChunks(sorted)
+
+		outPath := filepath.Join(outDir, e.Name())
+		if err := writeIntegersToFile(outPath, merged); err != nil {
+			return err
+		}
+
+		count++
+	}
+
+	if count == 0 {
+		return errors.New("no .txt files processed")
+	}
+
+	fmt.Printf("Directory mode finished: %d files processed.\n", count)
+	return nil
+}
+
+func splitIntoChunks(numbers []int) [][]int {
+	n := len(numbers)
+	chunkCount := int(math.Ceil(math.Sqrt(float64(n))))
+	if chunkCount < 4 {
+		chunkCount = 4
+	}
+	if chunkCount > n {
+		chunkCount = n
+	}
+
+	base := n / chunkCount
+	rem := n % chunkCount
+
+	chunks := make([][]int, 0, chunkCount)
 	start := 0
-	for i := 0; i < chunksCount; i++ {
-		size := baseSize
-		if i < remainder {
+	for i := 0; i < chunkCount; i++ {
+		size := base
+		if i < rem {
 			size++
 		}
 		end := start + size
-		chunks = append(chunks, nums[start:end])
+		chunks = append(chunks, numbers[start:end])
 		start = end
 	}
-
 	return chunks
 }
 
-func printChunks(chunks [][]int) {
-	for i, c := range chunks {
-		fmt.Printf("  Chunk %d: %v\n", i, c)
-	}
-}
-
-func sortChunksConcurrently(chunks [][]int) {
+func sortChunksConcurrently(chunks [][]int) [][]int {
 	var wg sync.WaitGroup
 	wg.Add(len(chunks))
 
 	for i := range chunks {
-		go func(idx int) {
+		go func(i int) {
 			defer wg.Done()
-			sort.Ints(chunks[idx])
+			sort.Ints(chunks[i])
 		}(i)
 	}
 
 	wg.Wait()
-}
-
-func mergeTwoSorted(a, b []int) []int {
-	result := make([]int, 0, len(a)+len(b))
-	i, j := 0, 0
-
-	for i < len(a) && j < len(b) {
-		if a[i] <= b[j] {
-			result = append(result, a[i])
-			i++
-		} else {
-			result = append(result, b[j])
-			j++
-		}
-	}
-
-	result = append(result, a[i:]...)
-	result = append(result, b[j:]...)
-	return result
+	return chunks
 }
 
 func mergeSortedChunks(chunks [][]int) []int {
 	if len(chunks) == 0 {
-		return nil
+		return []int{}
 	}
 	result := chunks[0]
+
 	for i := 1; i < len(chunks); i++ {
 		result = mergeTwoSorted(result, chunks[i])
 	}
 	return result
 }
 
-func readIntsFromFile(path string) ([]int, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open file %s: %w", path, err)
+func mergeTwoSorted(a, b []int) []int {
+	i, j := 0, 0
+	res := make([]int, 0, len(a)+len(b))
+
+	for i < len(a) && j < len(b) {
+		if a[i] <= b[j] {
+			res = append(res, a[i])
+			i++
+		} else {
+			res = append(res, b[j])
+			j++
+		}
 	}
-	defer file.Close()
 
-	var nums []int
-	scanner := bufio.NewScanner(file)
-	lineNo := 0
+	res = append(res, a[i:]...)
+	res = append(res, b[j:]...)
+	return res
+}
 
-	for scanner.Scan() {
-		lineNo++
-		line := strings.TrimSpace(scanner.Text())
+func generateRandomNumbers(n int) []int {
+	rand.Seed(time.Now().UnixNano())
+	nums := make([]int, n)
+	for i := range nums {
+		nums[i] = rand.Intn(1000)
+	}
+	return nums
+}
+
+func readIntegersFromFile(path string) ([]int, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var out []int
+	sc := bufio.NewScanner(f)
+
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
 		if line == "" {
 			continue
 		}
-		val, err := strconv.Atoi(line)
+		v, err := strconv.Atoi(line)
 		if err != nil {
-			return nil, fmt.Errorf("invalid integer on line %d: %v", lineNo, err)
+			return nil, fmt.Errorf("invalid integer in file: %s", line)
 		}
-		nums = append(nums, val)
+		out = append(out, v)
+	}
+	if err := sc.Err(); err != nil {
+		return nil, err
 	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading file %s: %w", path, err)
-	}
-
-	return nums, nil
+	return out, nil
 }
 
-func writeIntsToFile(path string, nums []int) error {
-	file, err := os.Create(path)
+func writeIntegersToFile(path string, nums []int) error {
+	f, err := os.Create(path)
 	if err != nil {
-		return fmt.Errorf("cannot create output file %s: %w", path, err)
+		return err
 	}
-	defer file.Close()
+	defer f.Close()
 
-	writer := bufio.NewWriter(file)
-	for _, v := range nums {
-		if _, err := fmt.Fprintf(writer, "%d\n", v); err != nil {
-			return fmt.Errorf("failed writing to %s: %w", path, err)
-		}
+	w := bufio.NewWriter(f)
+	for _, n := range nums {
+		fmt.Fprintln(w, n)
 	}
-	if err := writer.Flush(); err != nil {
-		return fmt.Errorf("failed flushing to %s: %w", path, err)
-	}
-	return nil
+	return w.Flush()
 }
 
-func handleRandomMode(args []string) {
-	if len(args) != 1 {
-		printUsageAndExit("incorrect -r usage")
+func printChunks(chunks [][]int) {
+	for i, c := range chunks {
+		fmt.Printf("Chunk %d: %v\n", i, c)
 	}
-
-	n, err := strconv.Atoi(args[0])
-	if err != nil || n < 10 {
-		fmt.Fprintln(os.Stderr, "Error: N must be an integer >= 10")
-		os.Exit(1)
-	}
-
-	rand.Seed(time.Now().UnixNano())
-	nums := make([]int, n)
-	for i := 0; i < n; i++ {
-		nums[i] = rand.Intn(1000)
-	}
-
-	processNumbers(nums, true)
-}
-
-func handleInputFileMode(args []string) {
-	if len(args) != 1 {
-		printUsageAndExit("incorrect -i usage")
-	}
-
-	inputPath := args[0]
-	nums, err := readIntsFromFile(inputPath)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error reading input file:", err)
-		os.Exit(1)
-	}
-
-	if len(nums) < 10 {
-		fmt.Fprintln(os.Stderr, "Error: input file must contain at least 10 integers")
-		os.Exit(1)
-	}
-
-	processNumbers(nums, true)
-}
-
-func handleDirectoryMode(args []string) {
-	if len(args) != 1 {
-		printUsageAndExit("incorrect -d usage")
-	}
-
-	dir := args[0]
-	info, err := os.Stat(dir)
-	if err != nil || !info.IsDir() {
-		fmt.Fprintln(os.Stderr, "Error:", dir, "is not a directory")
-		os.Exit(1)
-	}
-
-	parent := filepath.Dir(dir)
-	base := filepath.Base(dir)
-
-	outDirName := fmt.Sprintf("%s_sorted_%s_%s_%s", base, firstName, lastName, studentID)
-	outDirPath := filepath.Join(parent, outDirName)
-
-	if err := os.MkdirAll(outDirPath, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, "Error creating output directory:", err)
-		os.Exit(1)
-	}
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error reading directory:", err)
-		os.Exit(1)
-	}
-
-	var wg sync.WaitGroup
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		if filepath.Ext(entry.Name()) != ".txt" {
-			continue
-		}
-
-		wg.Add(1)
-		go func(filename string) {
-			defer wg.Done()
-
-			inPath := filepath.Join(dir, filename)
-			nums, err := readIntsFromFile(inPath)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Skipping %s: %v\n", filename, err)
-				return
-			}
-
-			sorted := processNumbers(nums, false)
-
-			outPath := filepath.Join(outDirPath, filename)
-			if err := writeIntsToFile(outPath, sorted); err != nil {
-				fmt.Fprintf(os.Stderr, "Error writing %s: %v\n", outPath, err)
-			}
-		}(entry.Name())
-	}
-
-	wg.Wait()
 }
